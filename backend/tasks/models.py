@@ -12,7 +12,7 @@ class Task(models.Model):
 class Document(models.Model):
     title = models.CharField(max_length=255)
     # FileField is key: 'documents/' is a subfolder inside MEDIA_ROOT
-    uploaded_file=models.BooleanField(default=False)
+    uploaded_file=models.FileField(upload_to='documents/')
 
     # We will use this flag later to track if the RAG indexing is done
     is_indexed = models.BooleanField(default=False)
