@@ -4,7 +4,7 @@ from rest_framework import viewsets
 from .models import Document, Task
 from .serializers import TaskSerializer
 from .document_serializers import DocumentSerializer
-from 
+
 
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all().order_by('-created_at')
@@ -12,7 +12,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
 
 class DocumentViewSet(viewsets.ModelViewSet):
-    queryset = Document.objects.all().order_by('-uploaded-at')
+    queryset = Document.objects.all().order_by('uploaded_at')
     serializer_class = DocumentSerializer
 
     # Optional: Allow viewing file metadata without authentication for now

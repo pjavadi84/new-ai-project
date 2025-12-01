@@ -17,13 +17,22 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from tasks.views import TaskViewSet
+from tasks.views import TaskViewSet, DocumentViewSet
+from django.conf import settings
+from django.conf.urls.static import static
 
 # Create a router and register our viewset with it.
 router = DefaultRouter()
 router.register(r'tasks', TaskViewSet)
+router.register(r'documents', DocumentViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls))
 ]
+
+
+
+# I only add the static helper in debug mode for dev. In prod, a dedicated web server (like NginX) handles serving media files for security and performance
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
