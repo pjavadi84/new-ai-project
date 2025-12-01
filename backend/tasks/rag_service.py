@@ -1,11 +1,13 @@
 import os
-
+import ipdb
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from django.conf import settings
-from langchain.text_splitter import RecursiveCharacterTextSplitter # pyright: ignore[reportMissingImports]
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+# from langchain.text_splitter import RecursiveCharacterTextSplitter # pyright: ignore[reportMissingImports]
+from langchain_community.document_loaders import UnstructuredPDFLoader
 
 # This directory will store your ChromaDB files
 CHROMA_DB_PATH = os.path.join(settings.BASE_DIR, "chroma_db")
@@ -19,8 +21,11 @@ def index_document(document_instance):
     file_path = document_instance.uploaded_file.path
 
     # --- 1. Load and Parse ---
-    loader = PyPDFLoader(file_path)
+    # Using UnstructuredPDFLoader for pdfs that can contain ustructured combinations oftables, objects, credentials, etc.
+    # than PyPDFLoader. Let's try this:
+    loader = UnstructuredPDFLoader(file_path, mode="elements", strategy="hi_res")
     documents = loader.load()
+
 
     # --- 2. Chunking (Splitting) ---
     # Interview Focus: Chunking is vital for context. 
