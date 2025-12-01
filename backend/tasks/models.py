@@ -8,3 +8,16 @@ class Task(models.Model):
 
     def __str__(self):
         return self.title
+
+class Document(models.Model):
+    title = models.CharField(max_length=255)
+    # FileField is key: 'documents/' is a subfolder inside MEDIA_ROOT
+    uploaded_file=models.BooleanField(default=False)
+
+    # We will use this flag later to track if the RAG indexing is done
+    is_indexed = models.BooleanField(default=False)
+
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.title

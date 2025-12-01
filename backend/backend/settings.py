@@ -137,3 +137,8 @@ CORS_ALLOWED_ORIGINS = [
 
 # For local development we can open CORS completely; tighten for prod
 CORS_ALLOW_ALL_ORIGINS = True
+
+
+# Directory where user-uploaded files (media) will be stored
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
