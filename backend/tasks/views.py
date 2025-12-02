@@ -6,14 +6,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 from rest_framework.parsers import MultiPartParser, FormParser # <-- NEW Import
 from .document_serializers import DocumentSerializer
-from .models import Document, Task
+from .models import Document
 from .rag_service import index_document
-from .serializers import TaskSerializer
-
-
-class TaskViewSet(viewsets.ModelViewSet):
-    queryset = Task.objects.all().order_by("-created_at")
-    serializer_class = TaskSerializer
 
 
 class DocumentViewSet(viewsets.ModelViewSet):

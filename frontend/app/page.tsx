@@ -1,95 +1,22 @@
-"use client"
-
-import Image from "next/image";
-import { Task } from '@/types';
-import TaskForm from "./components/TaskForm";
-import { useEffect, useState } from "react";
-import TaskItem from './components/TaskItem';
-import { API_URL } from "@/app/lib/api";
-
 export default function Home() {
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-
-  // Function passed to the form to update the list after a successful POST
-  const handleTaskCreated = (newTask: Task)=>{
-    setTasks(prevTasks => [newTask, ...prevTasks])
-  }
-
-  useEffect(()=>{
-    async function fetchTasks(){
-      try{
-        const response = await fetch(API_URL);
-
-        if(!response.ok){
-          throw new Error(`HTTP error: ${response.status}`)
-        }
-
-        const data: Task[] = await response.json();
-        setTasks(data);
-      } catch {
-        console.error("Could not fetch tasks:", Error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchTasks();
-  }, []);
-
-
-  // --- RENDERING ---
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-screen bg-gray-50">
-        <p className="text-xl text-gray-700">Loading tasks...</p>
-      </div>
-    );
-  }
-
-  // --- UPDATE (PATCH) HANDLER: Immutably update ONE item ---
-  const handleTaskUpdated = (updatedTask: Task) => {
-      // 1. Map over the existing tasks.
-      // 2. If the current task ID matches the updated ID, replace it with the new object.
-      // 3. Otherwise, keep the old task object.
-      setTasks(prevTasks =>
-          prevTasks.map(task => 
-              task.id === updatedTask.id ? updatedTask : task
-          )
-      );
-  };
-
-  const handleTaskDeleted = (taskId: number) => {
-    setTasks(prevTasks => prevTasks.filter(task => task.id !==taskId));
-  }
-
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        {/* TaskForm handles the POST request */}
-        <TaskForm onTaskCreated={handleTaskCreated} />
-
-        <h1 className="text-3xl font-bold mb-6 text-gray-800 border-b pb-2">
-          TypeScript Task Manager
+    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black px-6">
+      <main className="w-full max-w-3xl rounded-2xl bg-white/90 p-10 shadow-xl ring-1 ring-gray-200 dark:bg-zinc-900 dark:ring-zinc-700">
+        <p className="text-sm uppercase tracking-[0.2em] text-indigo-500">Status</p>
+        <h1 className="mt-3 text-3xl font-bold text-gray-900 dark:text-white">
+          Todo functionality removed
         </h1>
-
-        <h2 className="text-xl font-semibold mb-4 text-gray-600">Tasks List:</h2>
-
-        {tasks.length > 0 ? (
-          <ul className="space-y-3">
-            {tasks.map(task => (
-              <TaskItem 
-                key={task.id}
-                task={task}
-                onTaskUpdate={handleTaskUpdated} // Pass the handler down
-                onTaskDelete={handleTaskDeleted}             
-          />
-          ))}
-        </ul>
-      ) : (
-        <p className="text-gray-500 italic">No tasks found. Create one using the form above!</p>
-      )}
+        <p className="mt-4 text-lg text-gray-700 leading-relaxed dark:text-gray-300">
+          The previous task manager UI and API endpoints have been removed. This frontend is now a clean slate for the remaining document features.
+        </p>
+        <div className="mt-8 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 dark:border-zinc-700 dark:bg-zinc-800">
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">What changed?</p>
+          <ul className="mt-3 space-y-2 text-gray-700 dark:text-gray-300">
+            <li>• Task pages, components, and types were removed.</li>
+            <li>• Task API routes were decommissioned on the backend.</li>
+            <li>• You can repurpose this page for document workflows.</li>
+          </ul>
+        </div>
       </main>
     </div>
   );
