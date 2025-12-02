@@ -2,12 +2,18 @@ import os
 
 
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_openai import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_community.vectorstores import Chroma
 from django.conf import settings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 # from langchain.text_splitter import RecursiveCharacterTextSplitter # pyright: ignore[reportMissingImports]
 from langchain_community.document_loaders import UnstructuredPDFLoader
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+
+
+
 
 # This directory will store your ChromaDB files
 CHROMA_DB_PATH = os.path.join(settings.BASE_DIR, "chroma_db")
@@ -42,7 +48,7 @@ def index_document(document_instance):
 
     # --- 3. Embedding ---
     # We use the OpenAI model for conversion (Text -> Vector)
-    embeddings = OpenAIEmbeddings(openai_api_key=os.environ.get("OPENAI_API_KEY")) # type: ignore
+    embeddings = OpenAIEmbeddings() # type: ignore
 
     # --- 4. Storage in Vector Database ---
     # We use the document's ID as the collection name to isolate its vectors
@@ -63,3 +69,67 @@ def index_document(document_instance):
     print(f"Indexing complete for Document ID: {document_instance.id}")
 
     return len(chunks)
+
+def query_document(document_id: int, query: str) -> str:
+    """
+    Builds and invokes an LCEL chain for RAG retrieval and generation.
+    """
+    # 1. Initialize Components
+    embeddings = OpenAIEmbeddings()
+    collection_name = f"doc_{document_id}"
+
+    # 2. Load the Vector Store and Create the Retriever
+    vectorstore = Chroma(
+        collection_name=collection_name, 
+        embedding_function=embeddings, 
+        persist_directory=CHROMA_DB_PATH
+    )
+
+    # The retriever object handles the semantic search (Retrieval)
+    retriever = vectorstore.as_retriever(
+        search_type="similarity", 
+        search_kwargs={"k": 4} # Retrieve the top 4 most relevant chunks
+    )
+
+    # 3. Define the LLM (The Generator)
+    llm = ChatOpenAI(
+        model="gpt-3.5-turbo",
+        temperature=0.0 # Set low temperature for factual summary
+    )
+
+    # 4. Define the Prompt (Crucial for Contextualization)
+    template = """
+    You are an assistant for question-answering based on the provided document context.
+    Use the following retrieved context to answer the user's question concisely.
+    If the context does not contain the answer, state that you cannot find the answer in the provided documents.
+
+    Context: {context}
+
+    Question: {question}
+    """
+
+    prompt = ChatPromptTemplate.from_template(template)
+
+    # 5. Build the LCEL Chain (The Pipeline)
+    
+    # Define a helper function to format the retrieved documents into a single string
+    def format_docs(docs):
+        return "\n\n".join(doc.page_content for doc in docs)
+
+    # The LCEL Pipeline uses the pipe operator '|' for seamless data flow:
+    rag_chain = (
+        # 5a. RunnablePassthrough provides the initial input (the question)
+        {"context": retriever | format_docs, "question": RunnablePassthrough()}
+        # 5b. Pass the context and question to the prompt template
+        | prompt
+        # 5c. Pass the formatted prompt to the LLM
+        | llm
+        # 5d. Convert the LLM's structured output into a simple string
+        | StrOutputParser()
+    )
+
+    # 6. Run the query using the final chain
+    # We use the key "question" because RunnablePassthrough takes the full input
+    answer = rag_chain.invoke(query) 
+    
+    return answer
