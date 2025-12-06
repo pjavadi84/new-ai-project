@@ -1,0 +1,35 @@
+# ------------------------------------
+# Django/Python Project Exclusions
+# ------------------------------------
+# Virtual environment (venv)
+venv/
+.env
+
+# Bytecode files
+*.pyc
+
+# Django-specific database file
+db.sqlite3
+
+# ------------------------------------
+# RAG System Exclusions
+# ------------------------------------
+# 1. User Uploaded Files (MEDIA_ROOT)
+# This prevents your PDFs from being pushed
+media/
+
+# 2. Vector Database Files (CHROMA_DB_PATH)
+# This prevents the vector store from being pushed
+chroma_db/
+
+# ------------------------------------
+# General Development Files
+# ------------------------------------
+.DS_Store # macOS system file
+
+# Add these lines to your .gitignore file:
+venv/
+db.sqlite3
+# Python cache files
+__pycache__/
+*.pyc

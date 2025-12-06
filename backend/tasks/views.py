@@ -8,6 +8,8 @@ from rest_framework.parsers import MultiPartParser, FormParser # <-- NEW Import
 from .document_serializers import DocumentSerializer
 from .models import Document
 from .rag_service import index_document
+from rest_framework.views import APIView
+from .rag_service import index_document, query_document
 
 
 class DocumentViewSet(viewsets.ModelViewSet):
@@ -62,3 +64,34 @@ class DocumentViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED,
             headers=headers,
         )
+    
+# --- View for Querying the Document (The RAG Agent) ---
+class QueryDocumentView(APIView):
+    # TEMPORARY: Allow anyone to access the view for testing
+    permission_classes = [AllowAny]
+
+    def post(self, request, format=None):
+        # Expecting JSON: {"document_id": 4, "query": "What are my work experiences?"}
+        document_id = request.data.get('document_id')
+        query = request.data.get('query')
+
+        if not document_id or not query:
+            return Response(
+                {"error": "Missing 'document_id' or 'query'"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Call the LCEL-based RAG service to get the generated answer
+            answer = query_document(document_id, query)
+            
+            return Response(
+                {"answer": answer},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            # This catches LLM errors, ChromaDB errors, etc.
+            return Response(
+                {"error": "Query failed", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

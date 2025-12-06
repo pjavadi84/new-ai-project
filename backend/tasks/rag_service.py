@@ -3,6 +3,8 @@ import os
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+# from langchain_community.embeddings import HuggingFaceEmbeddings # <-- NEW Import
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from django.conf import settings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -11,7 +13,8 @@ from langchain_community.document_loaders import UnstructuredPDFLoader
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
-
+from langchain_community.vectorstores.utils import filter_complex_metadata
+from langchain_ollama import OllamaLLM
 
 
 
@@ -32,6 +35,9 @@ def index_document(document_instance):
     loader = UnstructuredPDFLoader(file_path, mode="elements", strategy="hi_res")
     documents = loader.load()
 
+    # NEW: Filter out complex metadata before chunking/splitting
+    documents = filter_complex_metadata(documents)
+
 
     # --- 2. Chunking (Splitting) ---
     # Interview Focus: Chunking is vital for context. 
@@ -48,7 +54,9 @@ def index_document(document_instance):
 
     # --- 3. Embedding ---
     # We use the OpenAI model for conversion (Text -> Vector)
-    embeddings = OpenAIEmbeddings() # type: ignore
+    # RUNNING OUT OF TOKEN. SWITCHED TO HUGGINGFACE EMBEDDINGS  
+    # embeddings = OpenAIEmbeddings() # type: ignore
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
     # --- 4. Storage in Vector Database ---
     # We use the document's ID as the collection name to isolate its vectors
@@ -75,7 +83,9 @@ def query_document(document_id: int, query: str) -> str:
     Builds and invokes an LCEL chain for RAG retrieval and generation.
     """
     # 1. Initialize Components
-    embeddings = OpenAIEmbeddings()
+    # (CURRENTLY RAN OUT OF TOKEN. SWITCHED TO LOCAL EMBEDDING FROM HUGGINGFACE)
+    # embeddings = OpenAIEmbeddings()
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     collection_name = f"doc_{document_id}"
 
     # 2. Load the Vector Store and Create the Retriever
@@ -92,9 +102,9 @@ def query_document(document_id: int, query: str) -> str:
     )
 
     # 3. Define the LLM (The Generator)
-    llm = ChatOpenAI(
-        model="gpt-3.5-turbo",
-        temperature=0.0 # Set low temperature for factual summary
+    llm = OllamaLLM(
+        model="llama2", # <-- The model name you ran in the terminal
+        temperature=0.0
     )
 
     # 4. Define the Prompt (Crucial for Contextualization)
