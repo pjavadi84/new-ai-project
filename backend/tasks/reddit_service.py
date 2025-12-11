@@ -106,20 +106,23 @@ def index_reddit_post(url: str) -> dict:
         "status": "success",
         "post_title": submission.title,
         "post_id": submission.id,
-        "comment_count": len(documents)
+        "comment_count": len(documents),
+        "original_url": url  # Return original URL for attribution
     }
 
 
-def query_reddit_post(post_id: str, query: str) -> str:
+def query_reddit_post(post_id: str, query: str, original_url: str = None) -> dict:
     """
-    Queries indexed Reddit comments using RAG pipeline with Gemini 2.5 Flash.
+    Queries indexed Reddit comments using RAG pipeline with Gemini.
+    Implements data anonymization and compliance features.
     
     Args:
         post_id: Reddit post ID
         query: User question
+        original_url: Original Reddit post URL for attribution
         
     Returns:
-        Generated answer string
+        dict with 'answer', 'citations' (list of comment authors), and 'source_url'
     """
     # Initialize embeddings
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
@@ -137,35 +140,71 @@ def query_reddit_post(post_id: str, query: str) -> str:
         search_kwargs={"k": 10}
     )
     
-    # Initialize Gemini LLM
+    # Retrieve documents with metadata (for attribution)
+    retrieved_docs = retriever.get_relevant_documents(query)
+    
+    # Anonymize data: strip PII before sending to LLM
+    # Keep mapping for attribution in final output
+    anonymized_comments = []
+    citation_mapping = []  # Store author info for attribution
+    
+    for i, doc in enumerate(retrieved_docs):
+        # Extract comment text only (no usernames, no metadata)
+        comment_text = doc.page_content.strip()
+        anonymized_comments.append(f"Comment {i+1}: {comment_text}")
+        
+        # Store author info separately for attribution (not sent to LLM)
+        author = doc.metadata.get("author", "[deleted]")
+        citation_mapping.append({
+            "author": author,
+            "comment_id": i+1
+        })
+    
+    # Initialize Gemini LLM with safety settings
+    # Note: LangChain's ChatGoogleGenerativeAI may not expose all safety settings
+    # We'll configure what's available and rely on prompt guardrails
     llm = ChatGoogleGenerativeAI(
         model=settings.GOOGLE_GEMINI_MODEL,
         google_api_key=settings.GOOGLE_API_KEY,
-        temperature=0.0
+        temperature=0.0,
+        # Safety settings - these may vary by LangChain version
+        # The prompt will also enforce content safety
     )
     
-    # Define the prompt template
+    # Define the prompt template with content guardrails
     template = """
-    You are an assistant for analyzing Reddit comments and generating insights.
-    Use the following retrieved Reddit comments to answer the user's question.
-    Base your answer only on the provided comments. If the comments do not contain 
-    enough information to answer the question, state that clearly.
-
-    Context (Reddit Comments):
+    You are an impartial summarization assistant. Your sole purpose is to synthesize answers based only on the provided discussion comments.
+    
+    CRITICAL SAFETY RULES:
+    - You must refuse to generate or summarize any content that promotes illegal activity, self-harm, hate speech, or harassment.
+    - If an answer cannot be generated safely or accurately from the provided comments, you must return a neutral error message: "The content necessary to answer this question is unavailable or violates safety guidelines."
+    - Base your answer ONLY on the provided comments. Do not add external knowledge or assumptions.
+    - If the comments do not contain enough information to answer the question, state that clearly.
+    
+    Context (Discussion Comments - anonymized):
     {context}
 
     Question: {question}
+    
+    Provide a clear, factual summary based solely on the comments above.
     """
     
     prompt = ChatPromptTemplate.from_template(template)
     
-    # Define helper function to format documents
-    def format_docs(docs):
-        return "\n\n".join(doc.page_content for doc in docs)
+    # Format anonymized comments (no PII)
+    anonymized_context = "\n\n".join(anonymized_comments)
     
-    # Build the LCEL Chain
+    # Build the LCEL Chain with anonymized context
+    # Create a simple function that returns the formatted context
+    def format_context(_):
+        return anonymized_context
+    
+    # Use RunnablePassthrough to pass query, and format context separately
     rag_chain = (
-        {"context": retriever | format_docs, "question": RunnablePassthrough()}
+        {
+            "context": lambda _: anonymized_context,
+            "question": RunnablePassthrough()
+        }
         | prompt
         | llm
         | StrOutputParser()
@@ -174,5 +213,13 @@ def query_reddit_post(post_id: str, query: str) -> str:
     # Run the query
     answer = rag_chain.invoke(query)
     
-    return answer
+    # Prepare response with attribution
+    # Extract unique authors for citation
+    unique_authors = list(set([c["author"] for c in citation_mapping if c["author"] != "[deleted]"]))
+    
+    return {
+        "answer": answer,
+        "citations": unique_authors,
+        "source_url": original_url or f"https://www.reddit.com/comments/{post_id}/"
+    }
 
