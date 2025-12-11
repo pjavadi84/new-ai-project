@@ -155,4 +155,4 @@ REDDIT_USER_AGENT = os.getenv('REDDIT_USER_AGENT', 'RedditInsightAgent/1.0')
 
 # Google Gemini API Configuration
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
-GOOGLE_GEMINI_MODEL = os.getenv('GOOGLE_GEMINI_MODEL', 'gemini-1.5-flash')  # Default to stable model
+GOOGLE_GEMINI_MODEL = os.getenv('GOOGLE_GEMINI_MODEL', 'gemini-2.5-flash')  # Default to latest stable model

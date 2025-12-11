@@ -102,8 +102,14 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 3. Install dependencies:
 ```bash
-pip install django djangorestframework langchain langchain-chroma langchain-huggingface langchain-google-genai chromadb praw python-dotenv django-cors-headers unstructured
+# Option 1: Install from requirements.txt (recommended)
+pip install -r requirements.txt
+
+# Option 2: Install manually (if requirements.txt not available)
+pip install django djangorestframework langchain langchain-chroma langchain-huggingface langchain-google-genai chromadb praw python-dotenv django-cors-headers unstructured sentence-transformers
 ```
+
+**Note:** The `sentence-transformers` package is required for HuggingFace embeddings used in the Discussion Analyzer.
 
 4. Create `.env` file in `backend/` directory:
 ```env
@@ -111,7 +117,7 @@ REDDIT_CLIENT_ID=your_reddit_client_id
 REDDIT_CLIENT_SECRET=your_reddit_client_secret
 REDDIT_USER_AGENT=RedditInsightAgent/1.0
 GOOGLE_API_KEY=your_google_gemini_api_key
-GOOGLE_GEMINI_MODEL=gemini-1.5-flash
+GOOGLE_GEMINI_MODEL=gemini-2.5-flash
 ```
 
 5. Run migrations:
