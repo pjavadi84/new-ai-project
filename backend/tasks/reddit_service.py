@@ -1,6 +1,7 @@
 import os
 import re
 import praw
+import prawcore.exceptions
 from django.conf import settings
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -60,9 +61,9 @@ def index_reddit_post(url: str) -> dict:
         _ = submission.title  # This triggers loading if not already loaded
         if not submission.title:
             raise ValueError("Submission has no title - may be deleted or inaccessible")
-    except praw.exceptions.NotFound:
+    except prawcore.exceptions.NotFound:
         raise ValueError(f"Reddit post with ID '{post_id}' not found. The post may have been deleted or the ID is invalid.")
-    except praw.exceptions.Forbidden:
+    except prawcore.exceptions.Forbidden:
         raise ValueError(f"Access forbidden to Reddit post '{post_id}'. The post may be private or restricted.")
     except Exception as e:
         raise ValueError(f"Failed to fetch Reddit submission: {str(e)}. Check if the post ID is valid and accessible.")
