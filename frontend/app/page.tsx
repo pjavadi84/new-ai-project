@@ -1,7 +1,8 @@
 // pages/page.tsx or app/page.tsx (depending on your Next.js version)
 
-import DocumentUploader from '../app/components/DocumentUploader';
-import RAGQuery from '../app/components/RAGQuery';
+import DocumentUploader from './components/DocumentUploader';
+import RAGQuery from './components/RAGQuery';
+import RedditAnalyzer from './components/RedditAnalyzer';
 
 export default function Home() {
   return (
@@ -35,9 +36,16 @@ export default function Home() {
           <RAGQuery />
         </div>
 
+        <hr className="my-6 border-zinc-200 dark:border-zinc-700" />
+
+        {/* --- 3. Reddit Analyzer Component --- */}
+        <div className="p-4 border rounded-xl border-gray-200 dark:border-zinc-700">
+          <RedditAnalyzer />
+        </div>
+
         {/* --- Footer Note --- */}
         <div className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
-          <p>Ensure your **Django Backend** and **Ollama Application** are running before testing.</p>
+          <p>Ensure your **Django Backend**, **Ollama Application**, and **Reddit API credentials** are configured before testing.</p>
         </div>
       </main>
     </div>

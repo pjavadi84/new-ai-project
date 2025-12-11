@@ -95,3 +95,77 @@ class QueryDocumentView(APIView):
                 {"error": "Query failed", "details": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+# --- Views for Reddit Insight Agent ---
+class RedditIndexView(APIView):
+    """View for indexing Reddit post comments."""
+    permission_classes = [AllowAny]
+
+    def post(self, request, format=None):
+        # Expecting JSON: {"url": "https://www.reddit.com/r/..."}
+        url = request.data.get('url')
+
+        if not url:
+            return Response(
+                {"error": "Missing 'url' parameter"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            from .reddit_service import index_reddit_post
+            result = index_reddit_post(url)
+            
+            if result.get("status") == "error":
+                return Response(
+                    result,
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            return Response(
+                result,
+                status=status.HTTP_200_OK
+            )
+        except ValueError as e:
+            # Invalid URL format
+            return Response(
+                {"error": "Invalid Reddit URL", "details": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            # This catches PRAW errors, ChromaDB errors, etc.
+            return Response(
+                {"error": "Indexing failed", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class RedditQueryView(APIView):
+    """View for querying indexed Reddit comments."""
+    permission_classes = [AllowAny]
+
+    def post(self, request, format=None):
+        # Expecting JSON: {"post_id": "abc123", "query": "What do users think?"}
+        post_id = request.data.get('post_id')
+        query = request.data.get('query')
+
+        if not post_id or not query:
+            return Response(
+                {"error": "Missing 'post_id' or 'query'"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            from .reddit_service import query_reddit_post
+            answer = query_reddit_post(post_id, query)
+            
+            return Response(
+                {"answer": answer},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            # This catches LLM errors, ChromaDB errors, etc.
+            return Response(
+                {"error": "Query failed", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

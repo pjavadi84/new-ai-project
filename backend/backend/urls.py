@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from tasks.views import  DocumentViewSet, QueryDocumentView 
+from tasks.views import DocumentViewSet, QueryDocumentView, RedditIndexView, RedditQueryView 
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -29,6 +29,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api/query/', QueryDocumentView.as_view(), name='query-document'),
+    path('api/reddit/index/', RedditIndexView.as_view(), name='reddit-index'),
+    path('api/reddit/query/', RedditQueryView.as_view(), name='reddit-query'),
 ]
 
 
