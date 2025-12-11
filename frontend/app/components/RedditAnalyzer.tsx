@@ -101,8 +101,8 @@ const RedditAnalyzer = () => {
       <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#fff3cd', border: '1px solid #ffc107', borderRadius: '4px', fontSize: '12px' }}>
         <p style={{ margin: '0 0 5px 0' }}>
           <strong>Privacy & Terms:</strong> Data is processed temporarily and not stored permanently, shared, or used for AI training. 
-          <a href="#" style={{ marginLeft: '5px', color: '#0066cc' }}>Privacy Policy</a> | 
-          <a href="#" style={{ marginLeft: '5px', color: '#0066cc' }}>Terms of Service</a>
+          <a href="/privacy-policy" style={{ marginLeft: '5px', color: '#0066cc' }}>Privacy Policy</a> | 
+          <a href="/terms-of-service" style={{ marginLeft: '5px', color: '#0066cc' }}>Terms of Service</a>
         </p>
       </div>
       
