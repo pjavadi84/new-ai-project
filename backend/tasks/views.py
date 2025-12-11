@@ -145,9 +145,10 @@ class RedditQueryView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request, format=None):
-        # Expecting JSON: {"post_id": "abc123", "query": "What do users think?"}
+        # Expecting JSON: {"post_id": "abc123", "query": "What do users think?", "original_url": "https://..."}
         post_id = request.data.get('post_id')
         query = request.data.get('query')
+        original_url = request.data.get('original_url')
 
         if not post_id or not query:
             return Response(
@@ -157,10 +158,10 @@ class RedditQueryView(APIView):
 
         try:
             from .reddit_service import query_reddit_post
-            answer = query_reddit_post(post_id, query)
+            result = query_reddit_post(post_id, query, original_url)
             
             return Response(
-                {"answer": answer},
+                result,  # Returns dict with answer, citations, source_url
                 status=status.HTTP_200_OK
             )
         except Exception as e:
