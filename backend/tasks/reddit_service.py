@@ -65,6 +65,8 @@ def index_reddit_post(url: str) -> dict:
         raise ValueError(f"Reddit post with ID '{post_id}' not found. The post may have been deleted or the ID is invalid.")
     except prawcore.exceptions.Forbidden:
         raise ValueError(f"Access forbidden to Reddit post '{post_id}'. The post may be private or restricted.")
+    except ValueError:
+        raise  # Re-raise ValueError as-is to preserve specific error messages
     except Exception as e:
         raise ValueError(f"Failed to fetch Reddit submission: {str(e)}. Check if the post ID is valid and accessible.")
     
