@@ -5,7 +5,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 # from langchain_community.embeddings import HuggingFaceEmbeddings # <-- NEW Import
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from django.conf import settings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 # from langchain.text_splitter import RecursiveCharacterTextSplitter # pyright: ignore[reportMissingImports]
@@ -35,6 +35,9 @@ def index_document(document_instance):
     loader = UnstructuredPDFLoader(file_path, mode="elements", strategy="hi_res")
     documents = loader.load()
 
+    # Debug: inspect raw loader output before any splitting to verify extraction
+    print("Loaded documents:", documents)
+
     # NEW: Filter out complex metadata before chunking/splitting
     documents = filter_complex_metadata(documents)
 
@@ -43,9 +46,10 @@ def index_document(document_instance):
     # Interview Focus: Chunking is vital for context. 
     # Small chunks (e.g., 500) prevent hitting LLM token limits.
     # Overlap (e.g., 50) helps maintain context across chunks.
+    # Smaller chunks with higher overlap to keep resume sections cohesive across boundaries
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000, 
-        chunk_overlap=100,
+        chunk_size=500, 
+        chunk_overlap=150,
         length_function=len
     )
 
@@ -96,9 +100,10 @@ def query_document(document_id: int, query: str) -> str:
     )
 
     # The retriever object handles the semantic search (Retrieval)
+    # Retrieve more chunks and use MMR for diverse, relevant results
     retriever = vectorstore.as_retriever(
-        search_type="similarity", 
-        search_kwargs={"k": 4} # Retrieve the top 4 most relevant chunks
+        search_type="mmr", 
+        search_kwargs={"k": 8} # Retrieve top 8 with diversity
     )
 
     # 3. Define the LLM (The Generator)

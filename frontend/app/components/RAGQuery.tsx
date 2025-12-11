@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, FormEvent } from 'react';
 import axios from 'axios';
 
@@ -51,7 +53,7 @@ const RAGQuery = () => {
           required
         />
         <textarea
-          placeholder="What is my most recent work experience?"
+          placeholder="e.g. What is my most recent work experience?"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           rows={4}
