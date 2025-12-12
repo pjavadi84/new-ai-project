@@ -157,7 +157,7 @@ networkx==3.6
 nltk==3.9.2
 notebook==6.5.4
 notebook_shim==0.2.3
-numpy==2.3.5
+numpy==2.2.0
 oauthlib==3.3.1
 olefile==0.47
 ollama==0.6.1
