@@ -85,9 +85,13 @@ const RedditAnalyzer = () => {
       setStatus('Insight generated successfully!');
     } catch (error: any) {
       console.error('Query Error:', error);
-      const errorMessage = error.response?.data?.error || error.response?.data?.details || 'Query failed. Ensure your Django server and Gemini API are configured.';
+      const errorMessage = error.response?.data?.error || error.response?.data?.details || error.message || 'Query failed. Ensure your Django server and Gemini API are configured.';
       setAnswer('');
       setStatus(`Error: ${errorMessage}`);
+      // Log full error for debugging
+      if (error.response?.data) {
+        console.error('Full error response:', error.response.data);
+      }
     } finally {
       setLoading(false);
     }

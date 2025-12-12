@@ -1,6 +1,7 @@
 import os
 import re
 import praw
+import prawcore.exceptions
 from django.conf import settings
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -44,6 +45,9 @@ def index_reddit_post(url: str) -> dict:
     post_id = extract_post_id_from_url(url)
     
     # Initialize PRAW Reddit instance
+    if not settings.REDDIT_CLIENT_ID or not settings.REDDIT_CLIENT_SECRET:
+        raise ValueError("Reddit API credentials not configured. Please set REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET in .env file")
+    
     reddit = praw.Reddit(
         client_id=settings.REDDIT_CLIENT_ID,
         client_secret=settings.REDDIT_CLIENT_SECRET,
@@ -51,10 +55,26 @@ def index_reddit_post(url: str) -> dict:
     )
     
     # Fetch submission
-    submission = reddit.submission(id=post_id)
+    try:
+        submission = reddit.submission(id=post_id)
+        # Load submission attributes (title, etc.) - this triggers API call
+        _ = submission.title  # This triggers loading if not already loaded
+        if not submission.title:
+            raise ValueError("Submission has no title - may be deleted or inaccessible")
+    except prawcore.exceptions.NotFound:
+        raise ValueError(f"Reddit post with ID '{post_id}' not found. The post may have been deleted or the ID is invalid.")
+    except prawcore.exceptions.Forbidden:
+        raise ValueError(f"Access forbidden to Reddit post '{post_id}'. The post may be private or restricted.")
+    except ValueError:
+        raise  # Re-raise ValueError as-is to preserve specific error messages
+    except Exception as e:
+        raise ValueError(f"Failed to fetch Reddit submission: {str(e)}. Check if the post ID is valid and accessible.")
     
     # Flatten comment tree
-    submission.comments.replace_more(limit=0)
+    try:
+        submission.comments.replace_more(limit=0)
+    except Exception as e:
+        raise ValueError(f"Failed to load comments: {str(e)}")
     
     # Filter and create documents
     documents = []
@@ -124,24 +144,52 @@ def query_reddit_post(post_id: str, query: str, original_url: str = None) -> dic
     Returns:
         dict with 'answer', 'citations' (list of comment authors), and 'source_url'
     """
+    # Validate inputs
+    if not post_id:
+        raise ValueError("post_id is required")
+    if not query:
+        raise ValueError("query is required")
+    
+    # Check Gemini API key
+    if not settings.GOOGLE_API_KEY:
+        raise ValueError("Google Gemini API key not configured. Please set GOOGLE_API_KEY in .env file")
+    
     # Initialize embeddings
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    try:
+        embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    except Exception as e:
+        raise ValueError(f"Failed to initialize embeddings: {str(e)}")
+    
     collection_name = f"reddit_{post_id}"
     
     # Load the Vector Store and Create the Retriever
-    vectorstore = Chroma(
-        collection_name=collection_name,
-        embedding_function=embeddings,
-        persist_directory=CHROMA_DB_PATH
-    )
+    try:
+        vectorstore = Chroma(
+            collection_name=collection_name,
+            embedding_function=embeddings,
+            persist_directory=CHROMA_DB_PATH
+        )
+    except Exception as e:
+        raise ValueError(f"Failed to load ChromaDB collection '{collection_name}'. The post may not have been indexed yet. Error: {str(e)}")
     
     # Create retriever with k=10 (standard similarity search)
-    retriever = vectorstore.as_retriever(
-        search_kwargs={"k": 10}
-    )
+    try:
+        retriever = vectorstore.as_retriever(
+            search_kwargs={"k": 10}
+        )
+    except Exception as e:
+        raise ValueError(f"Failed to create retriever: {str(e)}")
     
     # Retrieve documents with metadata (for attribution)
-    retrieved_docs = retriever.get_relevant_documents(query)
+    try:
+        # In newer LangChain versions, use invoke() instead of get_relevant_documents()
+        retrieved_docs = retriever.invoke(query)
+        if not retrieved_docs:
+            raise ValueError(f"No relevant comments found for query. The post may not have enough indexed comments.")
+    except ValueError:
+        raise  # Re-raise ValueError as-is
+    except Exception as e:
+        raise ValueError(f"Failed to retrieve documents: {str(e)}")
     
     # Anonymize data: strip PII before sending to LLM
     # Keep mapping for attribution in final output
@@ -163,13 +211,16 @@ def query_reddit_post(post_id: str, query: str, original_url: str = None) -> dic
     # Initialize Gemini LLM with safety settings
     # Note: LangChain's ChatGoogleGenerativeAI may not expose all safety settings
     # We'll configure what's available and rely on prompt guardrails
-    llm = ChatGoogleGenerativeAI(
-        model=settings.GOOGLE_GEMINI_MODEL,
-        google_api_key=settings.GOOGLE_API_KEY,
-        temperature=0.0,
-        # Safety settings - these may vary by LangChain version
-        # The prompt will also enforce content safety
-    )
+    try:
+        llm = ChatGoogleGenerativeAI(
+            model=settings.GOOGLE_GEMINI_MODEL,
+            google_api_key=settings.GOOGLE_API_KEY,
+            temperature=0.0,
+            # Safety settings - these may vary by LangChain version
+            # The prompt will also enforce content safety
+        )
+    except Exception as e:
+        raise ValueError(f"Failed to initialize Gemini LLM. Check your GOOGLE_API_KEY and GOOGLE_GEMINI_MODEL settings. Error: {str(e)}")
     
     # Define the prompt template with content guardrails
     template = """
@@ -211,7 +262,18 @@ def query_reddit_post(post_id: str, query: str, original_url: str = None) -> dic
     )
     
     # Run the query
-    answer = rag_chain.invoke(query)
+    try:
+        answer = rag_chain.invoke(query)
+        if not answer or not answer.strip():
+            raise ValueError("Gemini API returned an empty response")
+    except Exception as e:
+        error_msg = str(e)
+        if "API key" in error_msg or "authentication" in error_msg.lower():
+            raise ValueError(f"Gemini API authentication failed. Check your GOOGLE_API_KEY. Error: {error_msg}")
+        elif "quota" in error_msg.lower() or "rate limit" in error_msg.lower():
+            raise ValueError(f"Gemini API quota exceeded or rate limited. Please try again later. Error: {error_msg}")
+        else:
+            raise ValueError(f"Failed to generate answer from Gemini API: {error_msg}")
     
     # Prepare response with attribution
     # Extract unique authors for citation
